@@ -1,0 +1,13 @@
+{
+  "name": "@coin/wallet",
+  "version": "0.1.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "echo \"TypeScript build not configured for this package\"",
+    "test": "echo \"No tests yet for wallet\""
+  },
+  "dependencies": {
+    "dilithium-js": "1.1.1"
+  }
+}
