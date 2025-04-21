@@ -1,5 +1,5 @@
 import type { KeyPair } from "./keys";
-import { sign as dilithiumSignHex, verify as dilithiumVerifyHex } from "./keys";
+import { sign as signHex, verify as verifyHex } from "./keys";
 
 export class Wallet {
   private keys: KeyPair;
@@ -10,12 +10,12 @@ export class Wallet {
 
   /** Sign arbitrary data, returning a hex-encoded signature. */
   sign(data: Uint8Array): string {
-    return dilithiumSignHex(data, this.keys.privateKey);
+    return signHex(data, this.keys.privateKey);
   }
 
   /** Verify a hex-encoded signature against the data and public key. */
   verify(data: Uint8Array, signature: string, publicKey: string): boolean {
-    return dilithiumVerifyHex(data, signature, publicKey);
+    return verifyHex(data, signature, publicKey);
   }
 }
 

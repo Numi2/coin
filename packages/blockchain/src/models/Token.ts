@@ -5,7 +5,7 @@ export interface Token {
 }
 
 export const CoinToken: Token = {
-  name: "Coin",
-  symbol: "COIN",
+  name: "Qoin",
+  symbol: "QOIN",
   decimals: 8
 };

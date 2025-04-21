@@ -1,0 +1,28 @@
+[package]
+name = "runtime"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+sp-core        = { git = "https://github.com/paritytech/substrate.git", package = "sp-core",         branch = "master", default-features = false }
+sp-std         = { git = "https://github.com/paritytech/substrate.git", package = "sp-std",         branch = "master", default-features = false }
+frame-support  = { git = "https://github.com/paritytech/substrate.git", package = "frame-support",  branch = "master", default-features = false }
+frame-system   = { git = "https://github.com/paritytech/substrate.git", package = "frame-system",   branch = "master", default-features = false }
+pqcrypto-kyber      = "0.7"
+pqcrypto-dilithium  = "0.7"
+pallet-basic-pallet = { path = "../pallets/basic-pallet" }
+pallet-balances = { git = "https://github.com/paritytech/substrate.git", package = "pallet-balances", branch = "master", default-features = false }
+blake3         = "1.4"
+parity-scale-codec = { package = "parity-scale-codec", version = "2", default-features = false }
+sp-api         = { git = "https://github.com/paritytech/substrate.git", package = "sp-api", branch = "master", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+  "sp-std/std",
+  "frame-support/std",
+  "frame-system/std",
+  "pallet-basic-pallet/std",
+  "pallet-balances/std"
+]

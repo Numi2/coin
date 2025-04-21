@@ -1,75 +1,290 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getState, setState } from '../lib/db';
-import type { Block, Transaction } from '@coin/blockchain';
-import { PersistentChain, P2PNode } from '@coin/blockchain';
-import { generateKeyPair, sign as signData, type KeyPair } from '@coin/wallet';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
+import { getState, setState } from "../lib/db";
+import { getSecure } from "../lib/secureStore";
+import { ApiPromise } from "@polkadot/api";
+import { getApi } from "../lib/substrateApi";
+import type { Transaction, Block } from "@coin/blockchain";
+import {
+  PersistentChain,
+  P2PNode,
+  IndexedDBAdapter,
+  hexToBytes,
+  bytesToHex,
+} from "@coin/blockchain";
+import { sign as signData, type KeyPair } from "@coin/wallet";
+import { init as minerInit, startMining as minerStart, stop as minerStop } from "substrate-node";
 
 interface NodeContextType {
-  chain: Block[];
+  chain: Array<{ number: number; hash: string }>;
   mempool: Transaction[];
-  wallet: KeyPair;
   peerUrls: string[];
   addPeer: (url: string) => Promise<void>;
+  startMining: () => Promise<void>;
+  stopMining: () => void;
+  api: ApiPromise | null;
+  address?: string;
+  walletKey?: KeyPair;
   createTransaction: (to: string, amount: string, fee: string) => Promise<void>;
-  minePending: () => Promise<void>;
 }
 
 const NodeContext = createContext<NodeContextType | undefined>(undefined);
 
 export function NodeProvider({ children }: { children: React.ReactNode }) {
-  const [chain, setChain] = useState<Block[]>([]);
+  const [chain, setChain] = useState<Array<{ number: number; hash: string }>>([]);
   const [mempool, setMempool] = useState<Transaction[]>([]);
+  const [peerUrls, setPeerUrls] = useState<string[]>([]);
+  const [api, setApi] = useState<ApiPromise | null>(null);
+  const [walletKey, setWalletKey] = useState<KeyPair>();
+  const [address, setAddress] = useState<string>();
+  const offlineRef = useRef<PersistentChain>();
+  const p2pRef = useRef<P2PNode>();
 
   useEffect(() => {
-    async function init() {
-      let c = await getChain();
-      if (c.length === 0) {
-        const genesis = createGenesisBlock();
-        c = [genesis];
-        await setChain(c);
-      }
-      setChainState(c);
+    async function initAll() {
+      await minerInit();
 
-      const m = await getMempool();
-      setMempoolState(m);
+      // load wallet
+      const stored = await getSecure("wallet-key");
+      if (stored) {
+        try {
+          const kp: KeyPair = JSON.parse(stored);
+          setWalletKey(kp);
+          const pub = hexToBytes(kp.publicKey);
+          const hash = await import("blake3").then((m) => m.hash(pub));
+          const addrHex = bytesToHex(hash);
+          setAddress(addrHex.startsWith("0x") ? addrHex : `0x${addrHex}`);
+        } catch {
+          console.error("Invalid wallet key");
+        }
+      }
+
+      // offline chain + P2P
+      try {
+        const storage = new IndexedDBAdapter();
+        const offline = await PersistentChain.create({ storageAdapter: storage });
+        offlineRef.current = offline;
+        setChain(offline.getBlocks().map((b) => ({
+          number: Number(b.header.number),
+          hash: b.hash,
+        })));
+        setMempool(offline.getPendingTransactions());
+        const peers = await getState<string[]>("peers", []);
+        setPeerUrls(peers);
+        const p2p = new P2PNode(offline, peers, {
+          onBlock: () =>
+            setChain(
+              offline.getBlocks().map((b) => ({
+                number: Number(b.header.number),
+                hash: b.hash,
+              }))
+            ),
+          onTransaction: () =>
+            setMempool(offline.getPendingTransactions()),
+        });
+        p2pRef.current = p2p;
+      } catch {
+        console.error("Offline mesh init failed");
+      }
+
+      // Substrate RPC
+      try {
+        const api = await getApi();
+        setApi(api);
+        api.rpc.chain.subscribeNewHeads((header) => {
+          const num = header.number.toNumber();
+          const hash = header.hash.toHex();
+          setChain((prev) =>
+            prev.length && prev[prev.length - 1].hash === hash
+              ? prev
+              : [...prev, { number: num, hash }]
+          );
+          p2pRef.current?.broadcastBlock({
+            header: {
+              previousHash: "",
+              number: BigInt(num),
+              merkleRoot: "",
+              timestamp: Date.now(),
+              nonce: 0,
+              difficulty: 0n,
+            },
+            transactions: [],
+            hash,
+          });
+        });
+        api.on?.("disconnected", () => {
+          console.warn("RPC disconnected; using offline cache");
+          const off = offlineRef.current;
+          if (off) {
+            setChain(
+              off.getBlocks().map((b) => ({
+                number: Number(b.header.number),
+                hash: b.hash,
+              }))
+            );
+            setMempool(off.getPendingTransactions());
+          }
+        });
+      } catch {
+        console.error("RPC init failed; offline only");
+      }
     }
-    init();
+
+    initAll().catch(console.error);
   }, []);
 
-  useEffect(() => {
-    if (chain.length > 0) {
-      setChain(chain);
-    }
-  }, [chain]);
+  const createTransaction = useCallback(
+    async (to: string, amountStr: string, feeStr: string) => {
+      if (!walletKey || !address) {
+        throw new Error("Wallet not initialized");
+      }
+      const amount = BigInt(amountStr);
+      const fee = BigInt(feeStr);
 
-  useEffect(() => {
-    setMempool(mempool);
-  }, [mempool]);
+      // on‑chain
+      if (api) {
+        try {
+          await api.tx
+            .balances
+            .transfer(to, amount)
+            .signAndSend(address, {
+              signer: {
+                signPayload: async ({ data }) => ({
+                  id: 1,
+                  signature: signData(new Uint8Array(data), walletKey.privateKey),
+                }),
+              },
+              tip: fee,
+            });
+        } catch (e) {
+          console.error("On-chain submit failed", e);
+        }
+      }
 
-  const addBlock = async (block: Block) => {
-    setChainState(prev => [...prev, block]);
-  };
+      // offline + P2P
+      const offline = offlineRef.current;
+      const p2p = p2pRef.current;
+      if (!offline || !p2p) return;
 
-  const addTransaction = async (tx: Transaction) => {
-    setMempoolState(prev => [...prev, tx]);
-  };
+      const ts = Date.now();
+      const payload = `${address}|${to}|${amount}|${fee}|${ts}`;
+      const sig = signData(
+        new TextEncoder().encode(payload),
+        walletKey.privateKey
+      );
+      const tx: Transaction = { from: address, to, amount, fee, timestamp: ts, signature: sig };
+
+      await offline.addTransaction(tx);
+      p2p.broadcastTransaction(tx);
+    },
+    [api, address, walletKey]
+  );
+
+  const startMining = useCallback(async () => {
+    if (!chain.length) throw new Error("No chain tip");
+    const tip = chain[chain.length - 1];
+    const work = new TextEncoder().encode(JSON.stringify(tip));
+    const target = 0xffffffff;
+    await minerStart(work, target, async (nonce) => {
+      console.log("nonce", nonce);
+      if (api && address && walletKey) {
+        try {
+          await api.tx.basicPallet
+            .submitBlock(
+              new Uint8Array(new Uint32Array([nonce]).buffer),
+              await api.rpc.chain.getBlockHash(tip.number)
+            )
+            .signAndSend(address, {
+              signer: { signPayload: async ({ data }) => ({
+                id: 1,
+                signature: signData(new Uint8Array(data), walletKey.privateKey),
+              }) },
+            });
+        } catch (e) {
+          console.error("Block submit failed", e);
+        }
+      }
+      const offline = offlineRef.current;
+      const p2p = p2pRef.current;
+      if (offline && p2p) {
+        const blk: Block = {
+          header: {
+            previousHash: "",
+            number: BigInt(tip.number),
+            merkleRoot: "",
+            timestamp: Date.now(),
+            nonce,
+            difficulty: 0n,
+          },
+          transactions: [],
+          hash: tip.hash,
+        };
+        await offline.applyBlock(blk);
+        p2p.broadcastBlock(blk);
+      }
+    });
+  }, [api, address, walletKey, chain]);
+
+  const stopMining = useCallback(() => {
+    minerStop();
+  }, []);
+
+  const addPeer = useCallback(
+    async (url: string) => {
+      const p2p = p2pRef.current;
+      if (!p2p) return;
+      p2p.connectPeer(url);
+      if (api) {
+        try {
+          const sys = (api.rpc.system as any);
+          if (sys.connectPeer) {
+            await sys.connectPeer(url);
+          } else if (sys.dialPeer) {
+            await sys.dialPeer(url);
+          } else if (sys.addReservedPeer) {
+            await sys.addReservedPeer(url);
+          }
+        } catch (e) {
+          console.error("RPC connectPeer failed", e);
+        }
+      }
+      const next = Array.from(new Set([...peerUrls, url]));
+      setPeerUrls(next);
+      await setState("peers", next);
+    },
+    [peerUrls, api]
+  );
 
   return (
-    <NodeContext.Provider value={{ chain, mempool, addBlock, addTransaction }}>
+    <NodeContext.Provider
+      value={{
+        chain,
+        mempool,
+        peerUrls,
+        addPeer,
+        startMining,
+        stopMining,
+        api,
+        address,
+        walletKey,
+        createTransaction,
+      }}
+    >
       {children}
     </NodeContext.Provider>
   );
 }
 
-/**
- * Hook to access node state and actions
- */
 export function useNode() {
-  const context = useContext(NodeContext);
-  if (!context) {
-    throw new Error('useNode must be used within NodeProvider');
-  }
-  return context;
+  const ctx = useContext(NodeContext);
+  if (!ctx) throw new Error("useNode must be inside NodeProvider");
+  return ctx;
 }

@@ -5,12 +5,16 @@ import { useNode } from '../NodeContext';
 import { Button } from '../components/ui/Button';
 
 export default function MinePage() {
-  const { chain, minePending } = useNode();
+  const { chain, startMining, stopMining } = useNode();
   const [mining, setMining] = useState(false);
 
-  const handleMine = async () => {
+  const handleStart = async () => {
     setMining(true);
-    await minePending();
+    await startMining();
+    setMining(false);
+  };
+  const handleStop = () => {
+    stopMining();
     setMining(false);
   };
 
@@ -24,9 +28,14 @@ export default function MinePage() {
       <p>
         Previous Hash: <code className="font-mono">{tip.hash}</code>
       </p>
-      <Button onClick={handleMine} disabled={mining}>
-        {mining ? 'Mining...' : 'Mine Block'}
-      </Button>
+      <div className="space-x-2">
+        <Button onClick={handleStart} disabled={mining}>
+          {mining ? 'Mining...' : 'Start Mining'}
+        </Button>
+        <Button onClick={handleStop} disabled={!mining}>
+          Stop Mining
+        </Button>
+      </div>
     </div>
   );
 }

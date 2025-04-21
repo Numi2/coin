@@ -1,0 +1,18 @@
+[package]
+name = "pallet-basic-pallet"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+frame-support = { git = "https://github.com/paritytech/substrate.git", package = "frame-support", default-features = false, branch = "master" }
+frame-system  = { git = "https://github.com/paritytech/substrate.git", package = "frame-system",  default-features = false, branch = "master" }
+sp-std         = { git = "https://github.com/paritytech/substrate.git", package = "sp-std",        default-features = false, branch = "master" }
+
+[features]
+default = ["std"]
+std = [
+  "frame-support/std",
+  "frame-system/std",
+  "sp-std/std"
+]

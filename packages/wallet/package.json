@@ -5,9 +5,12 @@
   "types": "src/index.ts",
   "scripts": {
     "build": "echo \"TypeScript build not configured for this package\"",
-    "test": "echo \"No tests yet for wallet\""
+    "test": "vitest run"
   },
   "dependencies": {
-    "dilithium-js": "1.1.1"
+    "@noble/post-quantum": "*"
+  },
+  "devDependencies": {
+    "vitest": "^0.29.8"
   }
 }

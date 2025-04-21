@@ -1,4 +1,5 @@
-import { keyPair, sign as dilithiumSign, verify as dilithiumVerify } from 'dilithium-js';
+import { ml_dsa65 } from '@noble/post-quantum/ml-dsa';
+import { slh_dsa } from '@noble/post-quantum/slh-dsa';
 
 /** Convert a Uint8Array to a hex string. */
 function bytesToHex(bytes: Uint8Array): string {
@@ -23,26 +24,85 @@ export interface KeyPair {
   /** Hex-encoded private key */
   privateKey: string;
 }
+/**
+ * Supported post-quantum algorithms.
+ */
+export type PQAlgorithm = 'dilithium' | 'sphincs';
 
-/** Generate a new CRYSTALS-Dilithium key pair. */
-export function generateKeyPair(): KeyPair {
-  const { publicKey, secretKey } = keyPair();
-  return {
-    publicKey: bytesToHex(publicKey),
-    privateKey: bytesToHex(secretKey)
-  };
+/**
+ * Generate a new post-quantum key pair.
+ * @param algorithm - The PQ algorithm to use ('dilithium' or 'sphincs').
+ */
+export function generateKeyPair(
+  algorithm: PQAlgorithm = 'dilithium'
+): KeyPair {
+  switch (algorithm) {
+    case 'dilithium': {
+      const { publicKey, secretKey } = ml_dsa65.generateKeyPair();
+      return {
+        publicKey: bytesToHex(publicKey),
+        privateKey: bytesToHex(secretKey)
+      };
+    }
+    case 'sphincs': {
+      const { publicKey: pub, secretKey: sec } = slh_dsa.generateKeyPair();
+      return {
+        publicKey: bytesToHex(pub),
+        privateKey: bytesToHex(sec)
+      };
+    }
+    default:
+      throw new Error(`Unsupported algorithm: ${algorithm}`);
+  }
 }
 
-/** Sign data (Uint8Array) returning a hex-encoded signature. */
-export function sign(data: Uint8Array, privateKeyHex: string): string {
+/**
+ * Sign data (Uint8Array) returning a hex-encoded signature.
+ * @param data - The message to sign.
+ * @param privateKeyHex - Hex-encoded private key.
+ * @param algorithm - The PQ algorithm to use ('dilithium' or 'sphincs').
+ */
+export function sign(
+  data: Uint8Array,
+  privateKeyHex: string,
+  algorithm: PQAlgorithm = 'dilithium'
+): string {
   const privateKey = hexToBytes(privateKeyHex);
-  const signature = dilithiumSign(data, privateKey);
+  let signature: Uint8Array;
+  switch (algorithm) {
+    case 'dilithium':
+      signature = ml_dsa65.sign(data, privateKey);
+      break;
+    case 'sphincs':
+      signature = slh_dsa.sign(data, privateKey);
+      break;
+    default:
+      throw new Error(`Unsupported algorithm: ${algorithm}`);
+  }
   return bytesToHex(signature);
 }
 
-/** Verify a hex-encoded signature against the data and public key. */
-export function verify(data: Uint8Array, signatureHex: string, publicKeyHex: string): boolean {
+/**
+ * Verify a hex-encoded signature against the data and public key.
+ * @param data - The original message.
+ * @param signatureHex - Hex-encoded signature.
+ * @param publicKeyHex - Hex-encoded public key.
+ * @param algorithm - The PQ algorithm to use ('dilithium' or 'sphincs').
+ */
+export function verify(
+  data: Uint8Array,
+  signatureHex: string,
+  publicKeyHex: string,
+  algorithm: PQAlgorithm = 'dilithium'
+): boolean {
   const signature = hexToBytes(signatureHex);
   const publicKey = hexToBytes(publicKeyHex);
-  return dilithiumVerify(data, signature, publicKey);
+  switch (algorithm) {
+    case 'dilithium':
+      return ml_dsa65.verify(data, signature, publicKey);
+    case 'sphincs':
+      return slh_dsa.verify(data, signature, publicKey);
+    default:
+      throw new Error(`Unsupported algorithm: ${algorithm}`);
+  }
 }

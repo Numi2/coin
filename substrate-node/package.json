@@ -1,0 +1,33 @@
+ {
+   "name": "pow-kernel",
+   "version": "0.1.0",
+   "main": "index.js",
+   "module": "index.js",
+   "types": "pow_kernel.d.ts",
+   "scripts": {
+     "build": "wasm-pack build --target web --features gpu"
+   },
+   "files": [
+     "*.js",
+     "*.wasm",
+     "*.d.ts"
+   ],
+   "exports": {
+     ".": {
+       "import": "./index.js",
+       "require": "./index.js"
+     },
+     "./init": {
+       "import": "./index.js",
+       "require": "./index.js"
+     },
+     "./startMining": {
+       "import": "./index.js",
+       "require": "./index.js"
+     },
+     "./stop": {
+       "import": "./index.js",
+       "require": "./index.js"
+     }
+   }
+ }

@@ -2,11 +2,15 @@
   "name": "coin",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*",
+    "substrate-node"
+  ],
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
+    "test": "vitest",
     "lint": "next lint"
   },
   "dependencies": {
@@ -21,6 +25,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "vitest": "^0.29.8",
+    "@polkadot/api": "^10",
+    "@polkadot/keyring": "^10"
   }
 }
