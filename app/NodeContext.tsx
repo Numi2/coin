@@ -11,14 +11,16 @@ import React, {
 import { getState, setState } from "../lib/db";
 import { getSecure } from "../lib/secureStore";
 import { ApiPromise } from "@polkadot/api";
+import { SignerPayloadJSON, SignerResult } from "@polkadot/types/types";
 import { getApi } from "../lib/substrateApi";
-import type { Transaction, Block } from "@coin/blockchain";
+import type { Transaction, Block, Header } from "@coin/blockchain";
 import {
   PersistentChain,
   P2PNode,
   IndexedDBAdapter,
   hexToBytes,
   bytesToHex,
+  type Chain,
 } from "@coin/blockchain";
 import { sign as signData, type KeyPair } from "@coin/wallet";
 import { init as minerInit, startMining as minerStart, stop as minerStop } from "substrate-node";
@@ -45,8 +47,8 @@ export function NodeProvider({ children }: { children: React.ReactNode }) {
   const [api, setApi] = useState<ApiPromise | null>(null);
   const [walletKey, setWalletKey] = useState<KeyPair>();
   const [address, setAddress] = useState<string>();
-  const offlineRef = useRef<PersistentChain>();
-  const p2pRef = useRef<P2PNode>();
+  const offlineRef = useRef<PersistentChain | null>(null);
+  const p2pRef = useRef<P2PNode | null>(null);
 
   useEffect(() => {
     async function initAll() {
@@ -59,7 +61,8 @@ export function NodeProvider({ children }: { children: React.ReactNode }) {
           const kp: KeyPair = JSON.parse(stored);
           setWalletKey(kp);
           const pub = hexToBytes(kp.publicKey);
-          const hash = await import("blake3").then((m) => m.hash(pub));
+          // Use WASM-based Blake3 hashing
+          const hash = await import('@c4312/blake3-wasm').then((m) => m.hash(pub));
           const addrHex = bytesToHex(hash);
           setAddress(addrHex.startsWith("0x") ? addrHex : `0x${addrHex}`);
         } catch {
@@ -72,18 +75,18 @@ export function NodeProvider({ children }: { children: React.ReactNode }) {
         const storage = new IndexedDBAdapter();
         const offline = await PersistentChain.create({ storageAdapter: storage });
         offlineRef.current = offline;
-        setChain(offline.getBlocks().map((b) => ({
-          number: Number(b.header.number),
+        setChain(offline.getBlocks().map((b, index) => ({
+          number: index,
           hash: b.hash,
         })));
         setMempool(offline.getPendingTransactions());
         const peers = await getState<string[]>("peers", []);
         setPeerUrls(peers);
-        const p2p = new P2PNode(offline, peers, {
+        const p2p = new P2PNode(offline as unknown as Chain, peers, {
           onBlock: () =>
             setChain(
-              offline.getBlocks().map((b) => ({
-                number: Number(b.header.number),
+              offline.getBlocks().map((b, index) => ({
+                number: index,
                 hash: b.hash,
               }))
             ),
@@ -110,11 +113,10 @@ export function NodeProvider({ children }: { children: React.ReactNode }) {
           p2pRef.current?.broadcastBlock({
             header: {
               previousHash: "",
-              number: BigInt(num),
               merkleRoot: "",
               timestamp: Date.now(),
               nonce: 0,
-              difficulty: 0n,
+              difficulty: BigInt(0),
             },
             transactions: [],
             hash,
@@ -125,8 +127,8 @@ export function NodeProvider({ children }: { children: React.ReactNode }) {
           const off = offlineRef.current;
           if (off) {
             setChain(
-              off.getBlocks().map((b) => ({
-                number: Number(b.header.number),
+              off.getBlocks().map((b, index) => ({
+                number: index,
                 hash: b.hash,
               }))
             );
@@ -157,10 +159,18 @@ export function NodeProvider({ children }: { children: React.ReactNode }) {
             .transfer(to, amount)
             .signAndSend(address, {
               signer: {
-                signPayload: async ({ data }) => ({
-                  id: 1,
-                  signature: signData(new Uint8Array(data), walletKey.privateKey),
-                }),
+                signPayload: async (payload: SignerPayloadJSON): Promise<SignerResult> => {
+                  if (!api) throw new Error("API not initialized"); // Guard against null API
+                  // Create ExtrinsicPayload from SignerPayloadJSON using api.registry
+                  const wrapper = api.registry.createType('ExtrinsicPayload', payload, { version: payload.version });
+                  // Get signing bytes
+                  const signingData = wrapper.toU8a(true);
+                  const signature = signData(signingData, walletKey.privateKey);
+                  return {
+                    id: 1, 
+                    signature: signature.startsWith("0x") ? signature as `0x${string}` : `0x${signature}` as `0x${string}`,
+                  };
+                },
               },
               tip: fee,
             });
@@ -193,7 +203,7 @@ export function NodeProvider({ children }: { children: React.ReactNode }) {
     const tip = chain[chain.length - 1];
     const work = new TextEncoder().encode(JSON.stringify(tip));
     const target = 0xffffffff;
-    await minerStart(work, target, async (nonce) => {
+    await minerStart(work, target, async (nonce: number) => {
       console.log("nonce", nonce);
       if (api && address && walletKey) {
         try {
@@ -203,10 +213,20 @@ export function NodeProvider({ children }: { children: React.ReactNode }) {
               await api.rpc.chain.getBlockHash(tip.number)
             )
             .signAndSend(address, {
-              signer: { signPayload: async ({ data }) => ({
-                id: 1,
-                signature: signData(new Uint8Array(data), walletKey.privateKey),
-              }) },
+              signer: {
+                signPayload: async (payload: SignerPayloadJSON): Promise<SignerResult> => {
+                  if (!api) throw new Error("API not initialized"); // Guard against null API
+                  // Create ExtrinsicPayload from SignerPayloadJSON using api.registry
+                  const wrapper = api.registry.createType('ExtrinsicPayload', payload, { version: payload.version });
+                  // Get signing bytes
+                  const signingData = wrapper.toU8a(true);
+                  const signature = signData(signingData, walletKey.privateKey);
+                  return {
+                    id: 1, 
+                    signature: signature.startsWith("0x") ? signature as `0x${string}` : `0x${signature}` as `0x${string}`,
+                  };
+                },
+              },
             });
         } catch (e) {
           console.error("Block submit failed", e);
@@ -218,11 +238,10 @@ export function NodeProvider({ children }: { children: React.ReactNode }) {
         const blk: Block = {
           header: {
             previousHash: "",
-            number: BigInt(tip.number),
             merkleRoot: "",
             timestamp: Date.now(),
             nonce,
-            difficulty: 0n,
+            difficulty: BigInt(0),
           },
           transactions: [],
           hash: tip.hash,

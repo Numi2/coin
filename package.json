@@ -7,27 +7,33 @@
     "substrate-node"
   ],
   "scripts": {
+    "predev": "yarn workspace substrate-node build",
     "dev": "next dev --turbopack",
+    "prebuild": "yarn workspace substrate-node build",
     "build": "next build",
     "start": "next start",
     "test": "vitest",
     "lint": "next lint"
   },
   "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "@c4312/blake3-wasm": "npm:blake3-wasm@^3.0.0",
+    "@polkadot/util-crypto": "10.4.2",
+    "@substrate/connect": "^2",
+    "idb": "^8.0.2",
     "next": "15.3.1",
-    "idb": "^8.6.2"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@polkadot/api": "^10",
+    "@polkadot/keyring": "^10",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
     "tailwindcss": "^4",
-    "vitest": "^0.29.8",
-    "@polkadot/api": "^10",
-    "@polkadot/keyring": "^10"
-  }
+    "typescript": "^5",
+    "vitest": "^0.29.8"
+  },
+  "resolutions": {}
 }

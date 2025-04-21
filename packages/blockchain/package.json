@@ -8,9 +8,9 @@
     "test": "echo \"No tests yet for blockchain\""
   },
   "dependencies": {
-    "blake3": "^1.3.0",
-    "@coin/tokenomics": "workspace:*",
-    "idb": "^8.6.2",
+    "@c4312/blake3-wasm": "npm:blake3-wasm@^3.0.0",
+    "@coin/tokenomics": "*",
+    "idb": "^8.0.2",
     "ws": "^8.0.0"
   }
 }

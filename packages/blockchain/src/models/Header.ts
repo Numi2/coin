@@ -6,7 +6,7 @@ export interface Header {
   difficulty: bigint;
 }
 
-import { hash } from 'blake3';
+import { hash } from '@c4312/blake3-wasm';
 
 /**
  * Hash a block header using Blake3 and return raw bytes.
