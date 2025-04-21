@@ -25,10 +25,6 @@ jobs:
           toolchain: stable
           profile: minimal
 
-      - name: Build WASM miner
-        working-directory: substrate-node
-        run: wasm-pack build --target web --features gpu
-
       - name: Build Substrate node
         working-directory: substrate-node/node
         run: cargo build --release

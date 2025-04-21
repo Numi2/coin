@@ -1,33 +1,35 @@
- {
+{
   "name": "substrate-node",
-   "version": "0.1.0",
-   "main": "index.js",
-   "module": "index.js",
-   "types": "pow_kernel.d.ts",
-  "scripts": {
-    "build": "wasm-pack build --target bundler --out-dir . --out-name pow_kernel --features gpu"
+  "version": "0.1.0",
+  "main": "index.js",
+  "module": "index.js",
+  "types": "pow_kernel.d.ts",
+  "scripts": { },
+  
+  "files": [
+    "*.js",
+    "*.wasm",
+    "*.d.ts"
+  ],
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.js"
+    },
+    "./init": {
+      "import": "./index.js",
+      "require": "./index.js"
+    },
+    "./startMining": {
+      "import": "./index.js",
+      "require": "./index.js"
+    },
+    "./stop": {
+      "import": "./index.js",
+      "require": "./index.js"
+    }
   },
-   "files": [
-     "*.js",
-     "*.wasm",
-     "*.d.ts"
-   ],
-   "exports": {
-     ".": {
-       "import": "./index.js",
-       "require": "./index.js"
-     },
-     "./init": {
-       "import": "./index.js",
-       "require": "./index.js"
-     },
-     "./startMining": {
-       "import": "./index.js",
-       "require": "./index.js"
-     },
-     "./stop": {
-       "import": "./index.js",
-       "require": "./index.js"
-     }
-   }
- }
+  "devDependencies": {
+   
+  }
+}

@@ -10,10 +10,11 @@
  wgpu = "0.14"
  wasm-bindgen = "0.2"
  console_error_panic_hook = "0.1"
- blake3 = "1.3"
- once_cell = "1.9"
+ blake3 = "1.8"
+ once_cell = "1.21"
  wasm-bindgen-futures = "0.4"
- bytemuck = "1.9"
+ bytemuck = "1.22"
+
 
  [features]
  default = ["gpu"]

@@ -91,7 +91,7 @@ GOAL: a browser-native, post-quantum blockchain using Nextjs Frontend, the WebGP
 
     — Phase 2: GPU‑Accelerated Miner in Rust→WASM
       • Create a standalone Rust crate (pow-kernel) that implements your Blake3 PoW search using wgpu.
-      • Compile to WASM with wasm-bindgen + wasm-pack, exposing JS functions like init(), startMining(cb), stop().
+      • Compile to WASM with wasm-bindgen exposing JS functions like init(), startMining(cb), stop().
       • Benchmarks against your current JS loop to validate massive speed‐ups.
 
       Phase 2: GPU‑Accelerated Miner in Rust→WASM
@@ -116,7 +116,7 @@ GOAL: a browser-native, post-quantum blockchain using Nextjs Frontend, the WebGP
    • Use Cargo features `gpu` vs `cpu` to include/exclude WGSL.
 
 5. Build & packaging
-   • Configure `wasm-pack build --target web --features gpu`.
+
    • Include `package.json` exports for `init`, `startMining`, `stop`.
 
 6. Benchmarks
