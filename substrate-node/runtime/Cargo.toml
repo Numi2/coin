@@ -5,24 +5,29 @@ edition = "2021"
 publish = false
 
 [dependencies]
-sp-core        = { git = "https://github.com/paritytech/substrate.git", package = "sp-core",         branch = "master", default-features = false }
-sp-std         = { git = "https://github.com/paritytech/substrate.git", package = "sp-std",         branch = "master", default-features = false }
-frame-support  = { git = "https://github.com/paritytech/substrate.git", package = "frame-support",  branch = "master", default-features = false }
-frame-system   = { git = "https://github.com/paritytech/substrate.git", package = "frame-system",   branch = "master", default-features = false }
+sp-core        = { version = "13.0.0", default-features = false }
+sp-std         = { version = "12.0.0", default-features = false } # v12 for sp-std
+frame-support  = { version = "26.0.0", default-features = false } # v26 for frame
+frame-system   = { version = "26.0.0", default-features = false }
+pow-kernel     = { path = "..", default-features = false }
 pqcrypto-kyber      = "0.7"
-pqcrypto-dilithium  = "0.7"
+pqcrypto-dilithium  = "0.5.0"
 pallet-basic-pallet = { path = "../pallets/basic-pallet" }
-pallet-balances = { git = "https://github.com/paritytech/substrate.git", package = "pallet-balances", branch = "master", default-features = false }
-blake3         = "1.4"
-parity-scale-codec = { package = "parity-scale-codec", version = "2", default-features = false }
-sp-api         = { git = "https://github.com/paritytech/substrate.git", package = "sp-api", branch = "master", default-features = false }
+pallet-balances = { version = "24.0.0", default-features = false } # v24 for pallets
+blake3         = "1.8"
+parity-scale-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false } # Bumped codec
+primitive-types= { version = "0.12", default-features = false } # For U256
+sp-api         = { version = "13.0.0", default-features = false }
+getrandom      = { version = "0.2", features = ["js"], default-features = false } # Enable js feature for wasm32 target
 
 [features]
 default = ["std"]
 std = [
+  "sp-core/std",
   "sp-std/std",
   "frame-support/std",
   "frame-system/std",
+  "parity-scale-codec/std", # Add std for codec
   "pallet-basic-pallet/std",
   "pallet-balances/std"
 ]

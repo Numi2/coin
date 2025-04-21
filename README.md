@@ -1,6 +1,6 @@
 
 
-Qoin is a browser-native, post-quantum blockchain mining prototype using the WebGPU API and a Rust Substrate backend. It offloads compute-intensive tasks like hashing and key encapsulation to the GPU directly in-browser, enabling decentralized mining without native installation. The project integrates CRYSTALS‑Kyber (KEM) and CRYSTALS‑Dilithium (signatures) via pqclean crates to ensure post-quantum security. It replaces SHA-based hashing with Blake3 in the runtime for speed and modern cryptographic resilience.
+Qoin is a browser-native, post-quantum blockchain mining prototype using the WebGPU API and a Rust Substrate backend. It offloads compute-intensive tasks like hashing and key encapsulation to the  directly in-browser, enabling decentralized mining without native installation. The project integrates CRYSTALS‑Kyber (KEM) and CRYSTALS‑Dilithium (signatures) via pqclean crates to ensure post-quantum security. It replaces SHA-based hashing with Blake3 in the runtime for speed and modern cryptographic resilience.
 
 
 
@@ -62,7 +62,7 @@ GOAL: a browser-native, post-quantum blockchain using Nextjs Frontend, the WebGP
              submits a basicPallet.doSomething(42) extrinsic, then reads it back from storage.
         5. How they work together today
            • The browser can mine blocks locally using the WASM + WebGPU kernel alone—no native install.
-           • You can separately run the native Substrate node (`cd substrate-node/node && cargo run --release`) to provide a “real” node.
+          • You can separately run the native Substrate node via Docker (`yarn workspace substrate-node native`), which builds a Docker image and launches a Substrate development node on ws://localhost:9944.
            • You can connect to that node via lib/substrateApi.ts or directly via Polkadot‑JS, but the React UI is not yet wired to call RPCs.
            • P2P gossip among browser nodes will eventually use the TS P2PNode class in @coin/blockchain to mesh browsers together.
         6. Gaps / next integration steps

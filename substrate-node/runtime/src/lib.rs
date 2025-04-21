@@ -9,10 +9,14 @@ use blake3::{hash, Hash as Blake3Hash};
 use parity_scale_codec::{Encode, Decode};
 use pqcrypto_dilithium::{PublicKey as DilithiumPublicKey, Signature as DilithiumSignature};
 use sp_runtime::{traits::{Verify, IdentifyAccount}};
-// remove Blake2-based address derivation; we’ll use Blake3 via the runtime hasher
+// remove Blake2-based address derivation; we'll use Blake3 via the runtime hasher
 // use sp_core::blake2_256;
 // Include FRAME's balances pallet for account balances and transfers
 use pallet_balances;
+// Use imports for PoW implementation
+use pow_kernel;
+use sp_core::H256;
+use primitive_types::U256;
 
 /// Post-quantum signature enum
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
@@ -55,36 +59,6 @@ impl HashT<sp_core::H256> for Blake3Hasher {
         sp_core::H256::from(out)
     }
 }
-
-parameter_types! {
-    pub const BlockHashCount: u32 = 2400;
-}
-// --- Begin balances pallet configuration ---
-/// Balance type used by pallet-balances
-pub type Balance = u128;
-
-parameter_types! {
-    /// Minimum balance required to keep an account alive
-    pub const ExistentialDeposit: Balance = 1;
-    /// Maximum number of locks an account can have
-    pub const MaxLocks: u32 = 50;
-    /// Maximum number of named reserves an account can have
-    pub const MaxReserves: u32 = 50;
-}
-
-/// Configure pallet-balances in the runtime
-impl pallet_balances::Config for Runtime {
-    type Balance = Balance;
-    type RuntimeEvent = RuntimeEvent;
-    type DustRemoval = ();
-    type ExistentialDeposit = ExistentialDeposit;
-    type AccountStore = System;
-    type WeightInfo = ();
-    type MaxLocks = MaxLocks;
-    type MaxReserves = MaxReserves;
-    type ReserveIdentifier = [u8; 8];
-}
-// --- End balances pallet configuration ---
 
 /// Runtime configuration
 impl frame_system::Config for Runtime {
@@ -160,3 +134,7 @@ construct_runtime!(
         BasicPallet: pallet_basic_pallet::{Pallet, Call, Storage, Event<T>},
     }
 );
+
+parameter_types! {
+    pub const BlockHashCount: u32 = 2400;
+}
